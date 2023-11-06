@@ -1,4 +1,5 @@
 import os
+import uuid
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -12,6 +13,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from tqdm import tqdm
 from webdriver_manager.chrome import ChromeDriverManager
 
+from PIL import Image
 
 def is_valid(url):
     parsed = urlparse(url)
@@ -36,8 +38,8 @@ def get_all_images(url):
     driver.quit()
 
     urls = []
-    for img in tqdm(soup.find_all("img"), "Extracting images"):
-        img_url = img.attrs.get("src")
+    for img in tqdm(soup.find('body').find_all("img"), "Extracting images"):
+        img_url = img['src']
         if not img_url:
             # if img does not contain src attribute, just skip
             continue
@@ -49,11 +51,6 @@ def get_all_images(url):
             img_url = img_url[:pos]
         except ValueError:
             pass
-
-        path, extension = os.path.splitext(img_url)
-        if extension != '':
-            if '.png' not in extension or '.jpg' not in extension or '.gif' not in extension:
-                continue
 
         if is_valid(img_url):
             urls.append(img_url)
@@ -73,11 +70,8 @@ def download(url, pathname):
     file_size = int(response.headers.get("Content-Length", 0))
 
     # get the file name
-    filename = os.path.join(pathname, url.split("/")[-1])
-
-    path, extension = os.path.splitext(filename)
-    if extension == '':
-        filename += '.png'
+    file = str(uuid.uuid4().hex) + '.png'
+    filename = os.path.join(pathname, file)
 
     # progress bar, changing the unit to bytes instead of iteration (default by tqdm)
     progress = tqdm(response.iter_content(1024), f"Downloading {filename}", total=file_size, unit="B", unit_scale=True,
@@ -90,6 +84,15 @@ def download(url, pathname):
             # update the progress bar manually
             progress.update(len(data))
 
+    # check image broken
+    try:
+        im = Image.open(filename)
+        im.verify()
+        im.close()
+    except:
+        # remove image if broken
+        os.remove(filename)
+
 
 def main(url, path):
     # get all images
@@ -101,6 +104,6 @@ def main(url, path):
 
 
 if __name__ == '__main__':
-    url = 'https://unsplash.com/pt-br'
-    pasta = 'unsplash-images'
+    url = 'https://www.google.com/search?q=flamengo&client=firefox-b-d&sca_esv=579833118&tbm=isch&sxsrf=AM9HkKlB8ehrmtVxjvPf2oooMB5oC3XM1A:1699289797673&source=lnms&sa=X&ved=2ahUKEwifzIrm66-CAxV4spUCHRezBM8Q_AUoAnoECAEQBA&biw=1728&bih=840&dpr=1.11'
+    pasta = 'flamengo-google-images'
     main(url, pasta)
